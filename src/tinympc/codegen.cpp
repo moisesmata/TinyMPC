@@ -1,14 +1,20 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <time.h>
-#include <dirent.h>
+
+
+//#include <dirent.h> 
+// NOTE - ^This^ supposedly does not work on embedded arm systems
+// I don't see it being used
+
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 //#include <error.h>
 #include "error.hpp"
 
-#include <iostream>
+#include <iostream> 
 #include <Eigen/Dense>
 
 // #include "types.hpp"
