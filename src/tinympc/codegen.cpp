@@ -227,8 +227,17 @@ int codegen_data_source(TinySolver* solver, const char* output_dir, int verbose)
     fprintf(data_cpp_f, "\t(tinyMatrix(%d, %d) << ", nx, nx);
     print_matrix(data_cpp_f, solver->cache->AmBKt, nx * nx);
     fprintf(data_cpp_f, ").finished(),\t// AmBKt\n"); // AmBKt
-    fprintf(data_cpp_f, "\t(tinyMatrix(%d, %d) << ", nx, nx);
-    print_matrix(data_cpp_f, solver->cache->C1, nx * nx);
+    fprintf(data_cpp_f, "\t(tinyMatrix(%d, %d) << ", nx, nu);
+    print_matrix(data_cpp_f, solver->cache->C_extra, nx * nu);
+    fprintf(data_cpp_f, ").finished(),\t// C_extra\n"); // C_extra
+    fprintf(data_cpp_f, "\t(tinyVector(%d) << ", nx);
+    print_matrix(data_cpp_f, solver->cache->APf, nx);
+    fprintf(data_cpp_f, ").finished(),\t// APf\n"); // APf
+    fprintf(data_cpp_f, "\t(tinyVector(%d) << ", nu);
+    print_matrix(data_cpp_f, solver->cache->BPf, nu);
+    fprintf(data_cpp_f, ").finished(),\t// BPf\n"); // BPf
+    fprintf(data_cpp_f, "\t(tinyMatrix(%d, %d) << ", nu, nu);
+    print_matrix(data_cpp_f, solver->cache->C1, nu * nu);
     fprintf(data_cpp_f, ").finished(),\t// C1\n"); // C1
     fprintf(data_cpp_f, "\t(tinyMatrix(%d, %d) << ", nx, nx);
     print_matrix(data_cpp_f, solver->cache->C2, nx * nx);

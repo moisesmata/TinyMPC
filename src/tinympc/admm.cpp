@@ -15,7 +15,11 @@ void backward_pass_grad(TinySolver *solver)
     for (int i = solver->work->N - 2; i >= 0; i--)
     {
         (solver->work->d.col(i)).noalias() = solver->cache->Quu_inv * (solver->work->Bdyn.transpose() * solver->work->p.col(i + 1) + solver->work->r.col(i) + solver->cache->BPf);
-        (solver->work->p.col(i)).noalias() = solver->work->q.col(i) + solver->cache->AmBKt.lazyProduct(solver->work->p.col(i + 1)) - (solver->cache->Kinf.transpose()).lazyProduct(solver->work->r.col(i)) + solver->cache->APf; 
+        (solver->work->p.col(i)).noalias() = solver->work->q.col(i)
+            + solver->cache->AmBKt.lazyProduct(solver->work->p.col(i + 1))
+            - (solver->cache->Kinf.transpose()).lazyProduct(solver->work->r.col(i))
+            - solver->cache->C_extra.lazyProduct(solver->work->d.col(i))
+            + solver->cache->APf;
     }
 }
 

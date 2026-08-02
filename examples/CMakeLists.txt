@@ -32,3 +32,7 @@ target_link_libraries(codegen_cartpole LINK_PUBLIC tinympcstatic)
 if(MINGW)
     target_link_libraries(codegen_cartpole LINK_PUBLIC "stdc++fs")
 endif(MINGW)
+
+# Solver-aware fixed-gain cache parity fixture
+add_executable(fixed_gain_cache_parity fixed_gain_cache_parity.cpp)
+target_link_libraries(fixed_gain_cache_parity LINK_PUBLIC tinympcstatic)

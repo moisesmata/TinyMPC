@@ -1,6 +1,8 @@
 #include "tiny_api.hpp"
 #include "tiny_api_constants.hpp"
 
+#include <Eigen/Eigenvalues>
+#include <cmath>
 #include <iostream>
 
 #ifdef __cplusplus
@@ -337,7 +339,7 @@ int tiny_precompute_and_set_cache(TinyCache *cache,
         Kinf = (R1 + Bdyn.transpose() * Ptp1 * Bdyn).inverse() * Bdyn.transpose() * Ptp1 * Adyn;
         Pinf = Q1 + Adyn.transpose() * Ptp1 * (Adyn - Bdyn * Kinf);
         // if Kinf converges, break
-        if ((Kinf - Ktp1).cwiseAbs().maxCoeff() < 1e-5)
+        if ((Kinf - Ktp1).cwiseAbs().maxCoeff() < 1e-10)
         {
             if (verbose) {
                 std::cout << "Kinf converged after " << i + 1 << " iterations" << std::endl;
@@ -351,6 +353,7 @@ int tiny_precompute_and_set_cache(TinyCache *cache,
     // Compute cached matrices
     tinyMatrix Quu_inv = (R1 + Bdyn.transpose() * Pinf * Bdyn).inverse();
     tinyMatrix AmBKt = (Adyn - Bdyn * Kinf).transpose();
+    tinyMatrix C_extra = AmBKt * Pinf * Bdyn - Kinf.transpose() * R1;
 
     // Precomputation for affine term
     tinyVector APf = AmBKt*Pinf*fdyn;
@@ -372,12 +375,101 @@ int tiny_precompute_and_set_cache(TinyCache *cache,
     cache->Pinf = Pinf;
     cache->Quu_inv = Quu_inv;
     cache->AmBKt = AmBKt;
+    cache->C_extra = C_extra;
     cache->C1 = Quu_inv;
     cache->C2 = AmBKt;
     cache->APf = APf;
     cache->BPf = BPf;
 
     return 0; // return success
+}
+
+int tiny_precompute_and_set_fixed_gain_cache(
+    TinyCache *cache,
+    tinyMatrix Adyn, tinyMatrix Bdyn, tinyMatrix fdyn,
+    tinyMatrix Q, tinyMatrix R, tinyMatrix K,
+    int nx, int nu, tinytype rho, int verbose) {
+
+    if (!cache) {
+        std::cout << "Error in tiny_precompute_and_set_fixed_gain_cache: cache is nullptr"
+                  << std::endl;
+        return 1;
+    }
+
+    int status = 0;
+    status |= check_dimension("State transition matrix (A)", "rows", Adyn.rows(), nx);
+    status |= check_dimension("State transition matrix (A)", "columns", Adyn.cols(), nx);
+    status |= check_dimension("Input matrix (B)", "rows", Bdyn.rows(), nx);
+    status |= check_dimension("Input matrix (B)", "columns", Bdyn.cols(), nu);
+    status |= check_dimension("Affine vector (f)", "rows", fdyn.rows(), nx);
+    status |= check_dimension("Affine vector (f)", "columns", fdyn.cols(), 1);
+    status |= check_dimension("State stage cost (Q)", "rows", Q.rows(), nx);
+    status |= check_dimension("State stage cost (Q)", "columns", Q.cols(), nx);
+    status |= check_dimension("Input stage cost (R)", "rows", R.rows(), nu);
+    status |= check_dimension("Input stage cost (R)", "columns", R.cols(), nu);
+    status |= check_dimension("Fixed gain (K)", "rows", K.rows(), nu);
+    status |= check_dimension("Fixed gain (K)", "columns", K.cols(), nx);
+    if (status) {
+        return status;
+    }
+
+    tinyMatrix Q1 = Q + rho * tinyMatrix::Identity(nx, nx);
+    tinyMatrix R1 = R + rho * tinyMatrix::Identity(nu, nu);
+    tinyMatrix Acl = Adyn - Bdyn * K;
+    EigenSolver<tinyMatrix> eigen_solver(Acl, false);
+    if (eigen_solver.info() != Success) {
+        std::cout << "Fixed-gain stability check failed" << std::endl;
+        return 2;
+    }
+    tinytype spectral_radius = eigen_solver.eigenvalues().cwiseAbs().maxCoeff();
+    if (!std::isfinite(spectral_radius) || spectral_radius >= 1.0) {
+        std::cout << "External fixed gain is unstable: spectral radius(A-BK)="
+                  << spectral_radius << std::endl;
+        return 3;
+    }
+
+    tinyMatrix stage_cost = Q1 + K.transpose() * R1 * K;
+    tinyMatrix Pinf = stage_cost;
+    bool converged = false;
+    int lyapunov_iterations = 0;
+    for (; lyapunov_iterations < 100000; ++lyapunov_iterations) {
+        tinyMatrix Pnext = stage_cost + Acl.transpose() * Pinf * Acl;
+        if ((Pnext - Pinf).cwiseAbs().maxCoeff() < 1e-11) {
+            Pinf = Pnext;
+            converged = true;
+            break;
+        }
+        Pinf = Pnext;
+    }
+    if (!converged) {
+        std::cout << "Fixed-gain Lyapunov iteration did not converge" << std::endl;
+        return 4;
+    }
+    Pinf = (Pinf + Pinf.transpose()) * 0.5;
+
+    tinyMatrix Quu_inv = (R1 + Bdyn.transpose() * Pinf * Bdyn).inverse();
+    tinyMatrix AmBKt = Acl.transpose();
+    tinyMatrix C_extra = AmBKt * Pinf * Bdyn - K.transpose() * R1;
+    tinyVector APf = AmBKt * Pinf * fdyn;
+    tinyVector BPf = Bdyn.transpose() * Pinf * fdyn;
+
+    cache->rho = rho;
+    cache->Kinf = K;
+    cache->Pinf = Pinf;
+    cache->Quu_inv = Quu_inv;
+    cache->AmBKt = AmBKt;
+    cache->C_extra = C_extra;
+    cache->APf = APf;
+    cache->BPf = BPf;
+    cache->C1 = Quu_inv;
+    cache->C2 = AmBKt;
+
+    if (verbose) {
+        std::cout << "Fixed-gain cache converged after " << lyapunov_iterations + 1
+                  << " Lyapunov iterations; spectral radius=" << spectral_radius
+                  << "; ||C_extra||=" << C_extra.norm() << std::endl;
+    }
+    return 0;
 }
 
 

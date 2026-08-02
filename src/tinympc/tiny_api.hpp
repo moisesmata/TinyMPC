@@ -26,6 +26,20 @@ int tiny_precompute_and_set_cache(TinyCache *cache,
                                     tinyMatrix Adyn, tinyMatrix Bdyn, tinyMatrix fdyn, tinyMatrix Q, tinyMatrix R,
                                     int nx, int nu, tinytype rho, int verbose);
 
+/**
+ * Precompute a TinyMPC cache for an externally supplied stabilizing gain.
+ *
+ * P is evaluated offline from the fixed-gain discrete Lyapunov equation.
+ * Returns a nonzero status for invalid dimensions, unstable gains, or a
+ * Lyapunov iteration that does not converge. The gain is never replaced by
+ * the DARE gain.
+ */
+int tiny_precompute_and_set_fixed_gain_cache(
+    TinyCache *cache,
+    tinyMatrix Adyn, tinyMatrix Bdyn, tinyMatrix fdyn,
+    tinyMatrix Q, tinyMatrix R, tinyMatrix K,
+    int nx, int nu, tinytype rho, int verbose);
+
 void compute_sensitivity_matrices(TinyCache *cache,
                                  tinyMatrix Adyn, tinyMatrix Bdyn, tinyMatrix Q, tinyMatrix R,
                                  int nx, int nu, tinytype rho, int verbose);

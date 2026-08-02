@@ -46,6 +46,7 @@ typedef struct {
     tinyMatrix Pinf;       // nx x nx
     tinyMatrix Quu_inv;    // nu x nu
     tinyMatrix AmBKt;      // nx x nx
+    tinyMatrix C_extra;    // nx x nu, zero for the DARE gain
     tinyVector APf;        // nx x 1
     tinyVector BPf;        // nu x 1
     tinyMatrix C1;         // From adaptive rho
